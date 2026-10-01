@@ -1,0 +1,20 @@
+# Keeps this fork up to date with the professor's repository (skimeur/QMF).
+# Runs every day, and can also be started by hand from the "Actions" tab.
+name: Sync with skimeur/QMF
+
+on:
+  schedule:
+    - cron: "17 5 * * *"   # every day at 05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge the latest changes from skimeur/QMF into main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/${{ github.repository }}/merge-upstream" -f branch=main
