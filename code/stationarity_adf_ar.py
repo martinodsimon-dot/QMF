@@ -42,11 +42,7 @@ import pandas as pd
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
-import scipy.stats
-from scipy.optimize import minimize
-from statsmodels.tsa.arima.model  import ARIMA
 from statsmodels.tsa.stattools import adfuller
 
 # to plot, set ploton to ploton to 1
@@ -111,6 +107,7 @@ pop10 = pop.reindex(year_grid).interpolate("linear")
 y = np.log(pop10["Population (historical)"]).dropna()
 y.plot()
 
+adfuller(y, regression="n")
 adfuller(y, regression="ctt", autolag="AIC", maxlag=10)
 # after removing a quadratic trend, the residual behaves like a stationary process
 

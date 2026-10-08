@@ -308,9 +308,9 @@ plot(log(df))
 # we take the data from 1950s to 2000s
 df <- window(df,1950,2000)
 
-# test for seasonality in the earnings
+# exploration for seasonality in the earnings
 month <- season(df)
-model1 <- lm (df ~ month - 1)
+model1 <- lm (df ~ month)
 summary(model1)
 
 # we plot the first difference of the log of Earnings of S&P 500

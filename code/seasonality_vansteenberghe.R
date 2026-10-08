@@ -248,13 +248,17 @@ plot(df.bc)
 dfD <- diff(df.bc, lag=12)
 plot(dfD)
 
+adf.test(dfD)
+
 # we try to fit an ARMA process
 layout(matrix(c(1,1,2,3), 2, 2, byrow = TRUE))
 plot(armasubsets(y=dfts,nar=7,nma=7))
 # autocorrelation function: which lags of the MA components are of interest
 acf(dfts)
+acf(dfD)
 # partial autocorrelation function: which lags of the AR component are of interest
 pacf(dfts)
+pacf(dfD)
 
 # we chose an ARMA(4,1) model
 shorten <- 1.04

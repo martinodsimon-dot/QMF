@@ -21,7 +21,6 @@ Author: Eric Vansteenberghe
 Year: 2026
 """
 
-
 import os
 import numpy as np
 import pandas as pd
@@ -42,7 +41,7 @@ os.chdir('//Users/skimeur/Mon Drive/QMF/')
 # =============================================================================
 # 1) Load and clean French population data
 # =============================================================================
-DATA_PATH = "data/Valeurs.csv"
+DATA_PATH = "data/001641607.csv"
 
 df = (
     pd.read_csv(
@@ -168,18 +167,6 @@ if ploton:
     ax.set_ylabel("Growth rate")
 
 
-# =============================================================================
-# Demean population growth rate
-# =============================================================================
-dx["Population_demeaned"] = dx["Population"] - dx["Population"].mean()
-
-# Optional visualization
-if ploton:
-    ax = dx[["Population", "Population_demeaned"]].plot(
-        title="Population Growth: Raw vs. Demeaned",
-        figsize=(8, 4),
-    )
-    ax.set_ylabel("Growth rate")
 
 # =============================================================================
 
@@ -187,8 +174,9 @@ if ploton:
 # =============================================================================
 
 dx["season_mean"] = np.nan
+
 for m in range(1, 13):
-    dx.loc[dx["Month"] == m, "season_mean"] = dx.loc[dx["Month"] == m, "Population_demeaned"].mean()
+    dx.loc[dx["Month"] == m, "season_mean"] = dx.loc[dx["Month"] == m, "Population"].mean()
 
 if ploton:
     ax = dx["season_mean"].plot(
@@ -199,7 +187,7 @@ if ploton:
     ax.set_ylabel("Seasonal mean")
 
 
-dx["Population_deseasonalized"] = dx["Population_demeaned"] - dx["season_mean"]
+dx["Population_deseasonalized"] = dx["Population"] - dx["season_mean"]
 
 if ploton:
     ax = dx["Population_deseasonalized"].plot(
@@ -209,11 +197,23 @@ if ploton:
     )
     ax.set_ylabel("Growth rate")
 
+# =============================================================================
+# Demean population growth rate
+# =============================================================================
+dx["Population_demeaned"] = dx["Population_deseasonalized"] - dx["Population_deseasonalized"].mean()
+
+# Optional visualization
+if ploton:
+    ax = dx[["Population", "Population_demeaned"]].plot(
+        title="Population Growth: Raw vs. Demeaned and Deseasonalized",
+        figsize=(8, 4),
+    )
+    ax.set_ylabel("Growth rate")
 
 # =============================================================================
 # Final stationary series used for AR modeling
 # =============================================================================
-ytild = dx["Population_deseasonalized"].dropna()
+ytild = dx["Population_demeaned"].dropna()
 
 # Optional visualization
 if ploton:
@@ -351,7 +351,7 @@ if ploton:
 
 def neg_loglike_ar1(theta, y):
     """Negative log-likelihood of AR(1) with Gaussian errors and stationary y0."""
-    theta = float(theta)  # minimize passes an array-like
+    theta = float(np.asarray(theta).item())  # minimize passes an array-like
 
     # Enforce stationarity for the initialization formula (simple penalty)
     if abs(theta) >= 0.999:
@@ -413,7 +413,7 @@ order_sel = sm.tsa.arma_order_select_ic(
     ytild,
     ic=["aic", "bic"],
     trend="n",
-    max_ar=10,
+    max_ar=11,
     max_ma=0,
 )
 

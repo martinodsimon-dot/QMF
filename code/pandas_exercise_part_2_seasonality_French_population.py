@@ -81,10 +81,7 @@ Vansteenberghe, E. (2026). *Quantitative Methods in Finance*.
 arXiv preprint arXiv:2601.12896.
 """
 
-
 import os
-import itertools
-import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
@@ -271,10 +268,6 @@ best_results = best_model.fit()
 print(best_results.summary())
 best_results_latex = best_results.summary().as_latex()
 
-# Does this faster method finds the same outcome?
-#model = auto_arima(dx.dropna(), seasonal=True, m=12, stepwise=True, trace=True, error_action='ignore', suppress_warnings=True)
-
-print(model.summary())
 
 # Plotting the residuals
 residuals = best_results.resid
