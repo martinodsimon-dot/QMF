@@ -32,6 +32,7 @@ Main components
 
 4. Volatility modelling (ARCH/GARCH family)
    - ARCH(1) fitted on ARIMA residuals (two-step illustration only).
+   - https://arch.readthedocs.io/en/latest/univariate/univariate_volatility_modeling.html
    - Joint estimation on returns using the arch package:
        * AR(1)-GARCH(1,1)
        * AR(1)-EGARCH(1,1)
@@ -50,6 +51,7 @@ Notes
   or AR(1)-EGARCH).
 
 Author: Eric Vansteenberghe
+2026
 """
 
 import numpy as np
@@ -347,3 +349,86 @@ def garch_check(res, lags=(10, 20), name="Model"):
 # Run checks
 garch_check(resgarch, lags=(10, 20), name="AR(1)-GARCH(1,1)")
 garch_check(resegarch, lags=(10, 20), name="AR(1)-EGARCH(1,1)")
+
+
+# Simple CPI -> YoY inflation -> GARCH-in-Mean (GARCH-M) using arch
+# (Mean includes f(sigma_t^2) with form="var" so f(.) = sigma_t^2)
+
+
+
+#%% Inflation uncertainty
+# https://arch.readthedocs.io/en/latest/univariate/univariate_volatility_modeling.html
+
+from pandas_datareader import data as pdr
+from arch.univariate import ARCHInMean, GARCH, StudentsT
+
+# 1) Import CPI (FRED) and build YoY inflation (%)
+start = "1960-01-01"
+cpi = pdr.DataReader("CPILFESL", "fred", start=start)  # Core CPI (all urban consumers: less food & energy)
+pi_yoy = 100 * cpi["CPILFESL"].pct_change(12).dropna()
+pi_yoy.name = "pi_yoy"
+
+# 2) GARCH-in-Mean: AR(lags) + kappa * f(sigma_t^2) + eps_t,  sigma_t^2 ~ GARCH(1,1)
+#    form="var" -> f(sigma_t^2) = sigma_t^2
+model = ARCHInMean(
+    pi_yoy,
+    lags=[1, 3, 12],          # simple persistent mean dynamics for inflation
+    volatility=GARCH(1, 0, 1),# GARCH(1,1): p=1, o=0, q=1
+    distribution=StudentsT(), # optional but often useful for macro tails
+    form="var",               # "vol" uses sigma_t, "var" uses sigma_t^2, "log" uses log(sigma_t^2)
+)
+
+res = model.fit(update_freq=0, disp="off")
+print(res.summary())
+
+# 3) Extract fitted uncertainty (conditional variance) and plot
+sigma2 = res.conditional_volatility**2
+ax = pd.concat([pi_yoy, sigma2.rename("sigma2")], axis=1).plot(subplots=True, figsize=(10, 6), title="Inflation and GARCH-M uncertainty")
+
+
+# ------------------------------------------------------------
+# 4) Normalized Uncertainty (NU)
+# NU_t = sqrt(Var_t) / sqrt(a + b |mu_t - mu*|)
+# Here: Var_t = sigma_t^2 from GARCH
+# Use a = 1, b = 1 and mu* = 2 (inflation target)
+# ------------------------------------------------------------
+
+mu_star = 2.0
+a, b = 1.0, 1.0
+
+# Conditional standard deviation (numerator)
+sigma = res.conditional_volatility
+
+# Conditional mean (fitted values from mean equation)
+mu_t = pi_yoy
+
+# Compute NU
+NU = sigma / np.sqrt(a + b * np.maximum(mu_t - mu_star, 0))
+NU = NU.rename("NU")
+
+# Align and drop missing values
+df_nu = pd.concat([pi_yoy, NU], axis=1).dropna()
+
+# ------------------------------------------------------------
+# 5) Plot Inflation, NU and sigma2 as time series
+# ------------------------------------------------------------
+
+# Make sure sigma2 is aligned
+df_plot = pd.concat([pi_yoy, NU, sigma.rename("sigma")], axis=1).dropna()
+
+fig, ax1 = plt.subplots(figsize=(10, 6), dpi=150)
+
+# Left axis: Inflation
+ax1.plot(df_plot.index, df_plot["pi_yoy"], linewidth=1.5)
+ax1.set_ylabel("Inflation (YoY, %)")
+ax1.set_title("Inflation, GARCH Variance and Normalized Uncertainty")
+
+# Right axis: Volatility measures
+ax2 = ax1.twinx()
+ax2.plot(df_plot.index, df_plot["NU"], linewidth=1.5, linestyle="--", color='red')
+ax2.plot(df_plot.index, df_plot["sigma"], linewidth=1.2, linestyle=":", color='orange')
+ax2.set_ylabel("Uncertainty Measures")
+
+plt.tight_layout()
+plt.show()
+
